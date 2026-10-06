@@ -1,4 +1,4 @@
-package com.rumi.notification.interfaces.rest;
+package com.rumi.notification.infrastructure.web;
 
 import io.swagger.v3.oas.annotations.media.Schema;
 
