@@ -68,6 +68,6 @@ Requirements: JDK 21 (the Maven wrapper is included; use `mvnw.cmd` on Windows).
 com.rumi.notification
 ├── domain             empty
 ├── application        empty
-├── infrastructure     OpenAPI configuration
-└── interfaces.rest    health endpoint
+└── infrastructure     OpenAPI configuration
+    └── web            health endpoint
 ```
