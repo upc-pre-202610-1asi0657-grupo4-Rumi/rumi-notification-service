@@ -46,10 +46,10 @@ Implemented functional endpoints: 0. Skeleton endpoints: 1.
 
 ## Run
 
-Requirements: JDK 21, Maven.
+Requirements: JDK 21 (the Maven wrapper is included; use `mvnw.cmd` on Windows).
 
 ```sh
-mvn spring-boot:run
+./mvnw spring-boot:run
 ```
 
 | Variable | Default |
@@ -59,7 +59,7 @@ mvn spring-boot:run
 ## Test
 
 ```sh
-mvn test
+./mvnw test
 ```
 
 ## Structure
@@ -68,6 +68,6 @@ mvn test
 com.rumi.notification
 ├── domain             empty
 ├── application        empty
-├── infrastructure     OpenAPI configuration
-└── interfaces.rest    health endpoint
+└── infrastructure     OpenAPI configuration
+    └── web            health endpoint
 ```
