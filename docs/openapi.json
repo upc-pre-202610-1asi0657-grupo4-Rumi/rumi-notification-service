@@ -1,0 +1,73 @@
+{
+    "openapi": "3.1.0",
+    "info": {
+        "title": "Rumi Notification Service API",
+        "description": "REST API of the Alerts & Notification bounded context. Skeleton: only the health endpoint exists; functionality is planned for later sprints.",
+        "version": "0.1.0"
+    },
+    "servers": [
+        {
+            "url": "http://localhost:8085",
+            "description": "Generated server url"
+        }
+    ],
+    "tags": [
+        {
+            "name": "Health",
+            "description": "Liveness of the service skeleton"
+        }
+    ],
+    "paths": {
+        "/api/v1/alerts/health": {
+            "get": {
+                "tags": [
+                    "Health"
+                ],
+                "summary": "Check that the service is running",
+                "description": "Skeleton endpoint used to verify deployment and gateway routing. It is not a functional endpoint of the bounded context.",
+                "operationId": "health",
+                "responses": {
+                    "200": {
+                        "description": "The service is running",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/HealthResponse"
+                                },
+                                "examples": {
+                                    "Service up": {
+                                        "description": "Service up",
+                                        "value": {
+                                            "status": "UP",
+                                            "service": "rumi-notification-service"
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    },
+    "components": {
+        "schemas": {
+            "HealthResponse": {
+                "type": "object",
+                "description": "Liveness information of the service",
+                "properties": {
+                    "status": {
+                        "type": "string",
+                        "description": "Liveness status",
+                        "example": "UP"
+                    },
+                    "service": {
+                        "type": "string",
+                        "description": "Name of the service",
+                        "example": "rumi-notification-service"
+                    }
+                }
+            }
+        }
+    }
+}
