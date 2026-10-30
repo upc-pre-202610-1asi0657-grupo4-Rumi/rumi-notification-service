@@ -4,6 +4,26 @@ server:
 spring:
   application:
     name: rumi-notification-service
+  web:
+    # Error messages are always in English, whatever the locale of the server or the client.
+    locale: en
+    locale-resolver: fixed
+  # This service owns notificationsdb (PostgreSQL). The schema is in docs/schema.sql.
+  datasource:
+    url: ${NOTIFICATION_DB_URL:jdbc:postgresql://localhost:5432/notificationsdb}
+    username: ${NOTIFICATION_DB_USERNAME:postgres}
+    password: ${NOTIFICATION_DB_PASSWORD:postgres}
+  jpa:
+    hibernate:
+      ddl-auto: validate
+    open-in-view: false
+    properties:
+      hibernate:
+        # Instants are stored in UTC as plain TIMESTAMP columns, as in the ER model.
+        jdbc:
+          time_zone: UTC
+        type:
+          preferred_instant_jdbc_type: TIMESTAMP
 
 springdoc:
   api-docs:
