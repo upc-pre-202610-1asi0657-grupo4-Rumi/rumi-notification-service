@@ -101,6 +101,17 @@ Alert alertService.createAlertFromRisk(new CreateAlertFromRiskCommand(
 - An unknown risk level throws `IllegalArgumentException` and nothing is saved. The listener should reject
   the message without requeueing it.
 
+The listener consumes this event from RabbitMQ. Seismic Correlation does not publish it yet.
+
+- Exchange: `rumi.seismic-correlation.events` (topic, durable)
+- Queue: `rumi.notification.correlated-seismic-event-created` (durable)
+- Routing key: `seismic-correlation.event.correlated`
+- Connection: `RABBITMQ_HOST`, `RABBITMQ_PORT`, `RABBITMQ_USERNAME` and `RABBITMQ_PASSWORD`
+
+```json
+{ "buildingId": "...", "riskIndexId": "...", "seismicEventId": "...", "riskLevel": "HIGH", "calculatedAt": "2026-10-30T15:30:00Z" }
+```
+
 Sensor readings follow the same pattern with `evaluateReading(EvaluateReadingCommand)`.
 
 ## API documentation

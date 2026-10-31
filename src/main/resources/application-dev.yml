@@ -9,3 +9,8 @@ spring:
   jpa:
     hibernate:
       ddl-auto: create-drop
+  rabbitmq:
+    listener:
+      simple:
+        # No RabbitMQ in dev: the CorrelatedSeismicEventCreated listener is not started.
+        auto-startup: false
