@@ -12,8 +12,9 @@ public class OpenApiConfiguration {
     public OpenAPI notificationServiceOpenApi() {
         return new OpenAPI().info(new Info()
                 .title("Rumi Notification Service API")
-                .description("REST API of the Alerts & Notification bounded context. "
-                        + "Skeleton: only the health endpoint exists; functionality is planned for later sprints.")
-                .version("0.1.0"));
+                .description("REST API of the Alerts & Notification bounded context: alerts raised by seismic "
+                        + "risk (US14, US16) or by sensor readings that exceed a threshold (US15), and the "
+                        + "thresholds of each sensor.")
+                .version("0.2.0"));
     }
 }

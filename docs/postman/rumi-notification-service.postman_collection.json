@@ -1,0 +1,126 @@
+{
+  "info": {
+    "name": "Rumi - Notification Service (Alerts)",
+    "description": "Alerts and thresholds of rumi-notification-service. Run the service with the dev profile (baseUrl http://localhost:8085), or go through the gateway (baseUrl http://localhost:8080) and set the token variable with a JWT from IAM. Never save a real token in this file.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "auth": {
+    "type": "bearer",
+    "bearer": [{ "key": "token", "value": "{{token}}", "type": "string" }]
+  },
+  "variable": [
+    { "key": "baseUrl", "value": "http://localhost:8085" },
+    { "key": "token", "value": "" },
+    { "key": "buildingId", "value": "7a9b3c1d-2e4f-4b6a-8c0d-1e2f3a4b5c6d" },
+    { "key": "sensorId", "value": "5d1c2f0e-8f4a-4a53-9a7e-0f3b1c9d7a11" },
+    { "key": "alertId", "value": "0b7e4c2a-9d1f-4e3b-8a6c-5f2d1e0c9b8a" }
+  ],
+  "item": [
+    {
+      "name": "Thresholds",
+      "item": [
+        {
+          "name": "Configure threshold (PUT 200)",
+          "request": {
+            "method": "PUT",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": "{{baseUrl}}/api/v1/thresholds/{{sensorId}}",
+            "body": { "mode": "raw", "raw": "{\n  \"buildingId\": \"{{buildingId}}\",\n  \"warningValue\": 0.05,\n  \"criticalValue\": 0.10\n}" }
+          }
+        },
+        {
+          "name": "Configure threshold - warning above critical (400)",
+          "request": {
+            "method": "PUT",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": "{{baseUrl}}/api/v1/thresholds/{{sensorId}}",
+            "body": { "mode": "raw", "raw": "{\n  \"buildingId\": \"{{buildingId}}\",\n  \"warningValue\": 0.20,\n  \"criticalValue\": 0.10\n}" }
+          }
+        },
+        {
+          "name": "Get threshold (GET 200)",
+          "request": { "method": "GET", "url": "{{baseUrl}}/api/v1/thresholds/{{sensorId}}" }
+        },
+        {
+          "name": "List thresholds of building (GET 200)",
+          "request": { "method": "GET", "url": "{{baseUrl}}/api/v1/thresholds?buildingId={{buildingId}}" }
+        }
+      ]
+    },
+    {
+      "name": "Simulations (dev profile only)",
+      "item": [
+        {
+          "name": "Simulate CRITICAL risk (POST 201, evacuation)",
+          "event": [{
+            "listen": "test",
+            "script": { "type": "text/javascript", "exec": [
+              "pm.test('201 Created', () => pm.response.to.have.status(201));",
+              "pm.test('Evacuation required', () => pm.expect(pm.response.json().evacuationRequired).to.eql(true));",
+              "pm.collectionVariables.set('alertId', pm.response.json().id);"
+            ] }
+          }],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": "{{baseUrl}}/api/v1/alerts/simulations/risk",
+            "body": { "mode": "raw", "raw": "{\n  \"buildingId\": \"{{buildingId}}\",\n  \"riskLevel\": \"CRITICAL\"\n}" }
+          }
+        },
+        {
+          "name": "Simulate reading above critical (POST 201)",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": "{{baseUrl}}/api/v1/alerts/simulations/readings",
+            "body": { "mode": "raw", "raw": "{\n  \"sensorId\": \"{{sensorId}}\",\n  \"buildingId\": \"{{buildingId}}\",\n  \"zone\": \"FLOOR-3-NORTH\",\n  \"value\": 0.12\n}" }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Alerts",
+      "item": [
+        {
+          "name": "List alerts of building (GET 200)",
+          "request": { "method": "GET", "url": "{{baseUrl}}/api/v1/alerts?buildingId={{buildingId}}" }
+        },
+        {
+          "name": "List OPEN alerts (GET 200)",
+          "request": { "method": "GET", "url": "{{baseUrl}}/api/v1/alerts?buildingId={{buildingId}}&status=OPEN" }
+        },
+        {
+          "name": "Get alert (GET 200)",
+          "request": { "method": "GET", "url": "{{baseUrl}}/api/v1/alerts/{{alertId}}" }
+        },
+        {
+          "name": "Acknowledge alert (PATCH 200)",
+          "request": { "method": "PATCH", "url": "{{baseUrl}}/api/v1/alerts/{{alertId}}/acknowledge" }
+        },
+        {
+          "name": "Acknowledge again (PATCH 409)",
+          "request": { "method": "PATCH", "url": "{{baseUrl}}/api/v1/alerts/{{alertId}}/acknowledge" }
+        },
+        {
+          "name": "Resolve alert (PATCH 200)",
+          "request": { "method": "PATCH", "url": "{{baseUrl}}/api/v1/alerts/{{alertId}}/resolve" }
+        },
+        {
+          "name": "Unknown alert (GET 404)",
+          "request": { "method": "GET", "url": "{{baseUrl}}/api/v1/alerts/00000000-0000-4000-8000-000000000000" }
+        },
+        {
+          "name": "Resident of another building (GET 403)",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "X-Role", "value": "RESIDENT" },
+              { "key": "X-Building-Id", "value": "1f2e3d4c-5b6a-4978-8695-a4b3c2d1e0f9" }
+            ],
+            "url": "{{baseUrl}}/api/v1/alerts?buildingId={{buildingId}}"
+          }
+        }
+      ]
+    }
+  ]
+}
