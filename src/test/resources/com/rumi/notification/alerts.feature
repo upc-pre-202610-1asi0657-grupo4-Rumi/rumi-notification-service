@@ -10,10 +10,10 @@ Feature: Alerts backed by PostgreSQL
     Then the building has 1 "OPEN" alert with severity "HIGH"
     And the alert does not require evacuation
 
-  Scenario: A critical risk index asks the residents to evacuate (US16)
+  Scenario: A critical risk index points the residents to the building evacuation plan (US16)
     When Seismic Correlation reports a "CRITICAL" risk index for the building
     Then the building has 1 "OPEN" alert with severity "CRITICAL"
-    And the alert requires evacuation
+    And the alert points the residents to the building evacuation plan without ordering an evacuation
 
   Scenario: A risk index delivered twice raises only one alert
     When Seismic Correlation reports a "MEDIUM" risk index for the building

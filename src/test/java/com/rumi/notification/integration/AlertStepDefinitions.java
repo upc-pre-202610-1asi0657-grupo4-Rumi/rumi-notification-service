@@ -129,11 +129,14 @@ public class AlertStepDefinitions {
         assertThat(listAlerts()).isEmpty();
     }
 
-    @Then("the alert requires evacuation")
-    public void alertRequiresEvacuation() throws Exception {
+    @Then("the alert points the residents to the building evacuation plan without ordering an evacuation")
+    public void alertPointsToTheEvacuationPlan() throws Exception {
         JsonNode alert = getAlert();
         assertThat(alert.get("evacuationRequired").asBoolean()).isTrue();
-        assertThat(alert.get("message").asText()).contains("Evacuate the building");
+        assertThat(alert.get("message").asText())
+                .startsWith("Anomalía estructural crítica detectada tras un sismo.")
+                .contains("Siga el plan de evacuación de su edificio y las indicaciones de las autoridades.")
+                .doesNotContainPattern("(?iU)\\bevac(?:uate|úe|ue|uar|uen)\\b");
     }
 
     @Then("the alert does not require evacuation")
