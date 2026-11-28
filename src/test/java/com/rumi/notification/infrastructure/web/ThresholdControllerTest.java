@@ -14,6 +14,8 @@ import org.springframework.test.web.servlet.MockMvc;
 import java.util.List;
 import java.util.UUID;
 
+import static com.rumi.notification.infrastructure.web.GatewayRequests.administratorOf;
+import static com.rumi.notification.infrastructure.web.GatewayRequests.residentOf;
 import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
@@ -27,6 +29,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 class ThresholdControllerTest {
 
     private static final UUID BUILDING_ID = AlertFixtures.BUILDING_ID;
+    private static final UUID OTHER_BUILDING_ID = UUID.fromString("1f2e3d4c-5b6a-4978-8695-a4b3c2d1e0f9");
     private static final UUID SENSOR_ID = AlertFixtures.SENSOR_ID;
 
     @Autowired
@@ -40,6 +43,8 @@ class ThresholdControllerTest {
                 + ",\"criticalValue\":" + critical + "}";
     }
 
+    // --- Configure
+
     @Test
     void configuresTheThresholdOfASensor() throws Exception {
         when(alertService.configureThreshold(SENSOR_ID, BUILDING_ID, 0.05, 0.10))
@@ -47,7 +52,8 @@ class ThresholdControllerTest {
 
         mockMvc.perform(put("/api/v1/thresholds/{sensorId}", SENSOR_ID)
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content(body("\"" + BUILDING_ID + "\"", "0.05", "0.10")))
+                        .content(body("\"" + BUILDING_ID + "\"", "0.05", "0.10"))
+                        .with(administratorOf(BUILDING_ID)))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.sensorId").value(SENSOR_ID.toString()))
                 .andExpect(jsonPath("$.buildingId").value(BUILDING_ID.toString()))
@@ -59,7 +65,8 @@ class ThresholdControllerTest {
     void rejectsANegativeWarningValue() throws Exception {
         mockMvc.perform(put("/api/v1/thresholds/{sensorId}", SENSOR_ID)
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content(body("\"" + BUILDING_ID + "\"", "-0.05", "0.10")))
+                        .content(body("\"" + BUILDING_ID + "\"", "-0.05", "0.10"))
+                        .with(administratorOf(BUILDING_ID)))
                 .andExpect(status().isBadRequest())
                 .andExpect(content().contentTypeCompatibleWith(MediaType.APPLICATION_PROBLEM_JSON))
                 .andExpect(jsonPath("$.errors.warningValue").value("must be greater than 0"));
@@ -71,7 +78,8 @@ class ThresholdControllerTest {
     void rejectsAThresholdWithoutBuilding() throws Exception {
         mockMvc.perform(put("/api/v1/thresholds/{sensorId}", SENSOR_ID)
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content(body("null", "0.05", "0.10")))
+                        .content(body("null", "0.05", "0.10"))
+                        .with(administratorOf(BUILDING_ID)))
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.errors.buildingId").value("must not be null"));
 
@@ -85,16 +93,52 @@ class ThresholdControllerTest {
 
         mockMvc.perform(put("/api/v1/thresholds/{sensorId}", SENSOR_ID)
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content(body("\"" + BUILDING_ID + "\"", "0.20", "0.10")))
+                        .content(body("\"" + BUILDING_ID + "\"", "0.20", "0.10"))
+                        .with(administratorOf(BUILDING_ID)))
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.detail").value("Warning value must be lower than the critical value"));
     }
 
     @Test
+    void anAdministratorOfAnotherBuildingCannotConfigureAThreshold() throws Exception {
+        mockMvc.perform(put("/api/v1/thresholds/{sensorId}", SENSOR_ID)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(body("\"" + BUILDING_ID + "\"", "0.05", "0.10"))
+                        .with(administratorOf(OTHER_BUILDING_ID)))
+                .andExpect(status().isForbidden())
+                .andExpect(jsonPath("$.detail").value("You do not have access to building " + BUILDING_ID));
+
+        verifyNoInteractions(alertService);
+    }
+
+    @Test
+    void aResidentCannotConfigureAThreshold() throws Exception {
+        mockMvc.perform(put("/api/v1/thresholds/{sensorId}", SENSOR_ID)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(body("\"" + BUILDING_ID + "\"", "0.05", "0.10"))
+                        .with(residentOf(BUILDING_ID)))
+                .andExpect(status().isForbidden());
+
+        verifyNoInteractions(alertService);
+    }
+
+    @Test
+    void configuringWithoutGatewayIdentityIsRejected() throws Exception {
+        mockMvc.perform(put("/api/v1/thresholds/{sensorId}", SENSOR_ID)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(body("\"" + BUILDING_ID + "\"", "0.05", "0.10")))
+                .andExpect(status().isUnauthorized());
+
+        verifyNoInteractions(alertService);
+    }
+
+    // --- Get one threshold
+
+    @Test
     void returnsTheThresholdOfASensor() throws Exception {
         when(alertService.getThreshold(SENSOR_ID)).thenReturn(AlertFixtures.threshold());
 
-        mockMvc.perform(get("/api/v1/thresholds/{sensorId}", SENSOR_ID))
+        mockMvc.perform(get("/api/v1/thresholds/{sensorId}", SENSOR_ID).with(administratorOf(BUILDING_ID)))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.updatedAt").value("2026-10-30T14:32:04Z"));
     }
@@ -103,17 +147,53 @@ class ThresholdControllerTest {
     void answersNotFoundForASensorWithoutThreshold() throws Exception {
         when(alertService.getThreshold(SENSOR_ID)).thenThrow(new ThresholdNotFoundException(SENSOR_ID));
 
-        mockMvc.perform(get("/api/v1/thresholds/{sensorId}", SENSOR_ID))
+        mockMvc.perform(get("/api/v1/thresholds/{sensorId}", SENSOR_ID).with(administratorOf(BUILDING_ID)))
                 .andExpect(status().isNotFound())
                 .andExpect(jsonPath("$.detail").value("Sensor " + SENSOR_ID + " has no threshold"));
     }
 
     @Test
+    void anAdministratorOfAnotherBuildingCannotGetTheThresholdOfItsSensor() throws Exception {
+        when(alertService.getThreshold(SENSOR_ID)).thenReturn(AlertFixtures.threshold());
+
+        mockMvc.perform(get("/api/v1/thresholds/{sensorId}", SENSOR_ID).with(administratorOf(OTHER_BUILDING_ID)))
+                .andExpect(status().isForbidden());
+    }
+
+    @Test
+    void gettingAThresholdWithoutGatewayIdentityIsRejected() throws Exception {
+        mockMvc.perform(get("/api/v1/thresholds/{sensorId}", SENSOR_ID))
+                .andExpect(status().isUnauthorized());
+
+        verifyNoInteractions(alertService);
+    }
+
+    // --- List thresholds
+
+    @Test
     void listsTheThresholdsOfABuilding() throws Exception {
         when(alertService.listThresholds(BUILDING_ID)).thenReturn(List.of(AlertFixtures.threshold()));
 
-        mockMvc.perform(get("/api/v1/thresholds").param("buildingId", BUILDING_ID.toString()))
+        mockMvc.perform(get("/api/v1/thresholds").param("buildingId", BUILDING_ID.toString())
+                        .with(administratorOf(BUILDING_ID)))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$[0].sensorId").value(SENSOR_ID.toString()));
+    }
+
+    @Test
+    void anAdministratorOfAnotherBuildingCannotListItsThresholds() throws Exception {
+        mockMvc.perform(get("/api/v1/thresholds").param("buildingId", BUILDING_ID.toString())
+                        .with(administratorOf(OTHER_BUILDING_ID)))
+                .andExpect(status().isForbidden());
+
+        verifyNoInteractions(alertService);
+    }
+
+    @Test
+    void listingThresholdsWithoutGatewayIdentityIsRejected() throws Exception {
+        mockMvc.perform(get("/api/v1/thresholds").param("buildingId", BUILDING_ID.toString()))
+                .andExpect(status().isUnauthorized());
+
+        verifyNoInteractions(alertService);
     }
 }

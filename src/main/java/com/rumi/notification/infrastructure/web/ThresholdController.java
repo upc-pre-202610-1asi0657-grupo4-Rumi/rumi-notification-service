@@ -1,6 +1,7 @@
 package com.rumi.notification.infrastructure.web;
 
 import com.rumi.notification.application.AlertApplicationService;
+import com.rumi.notification.domain.model.SensorThreshold;
 import com.rumi.notification.infrastructure.web.dto.ThresholdRequestDto;
 import com.rumi.notification.infrastructure.web.dto.ThresholdResponseDto;
 import io.swagger.v3.oas.annotations.Operation;
@@ -75,12 +76,32 @@ public class ThresholdController {
                     }
             )
     )
+    @ApiResponse(
+            responseCode = "401",
+            description = "The request has no user identity from the gateway",
+            content = @Content(
+                    mediaType = OpenApiExamples.PROBLEM_JSON,
+                    schema = @Schema(implementation = ProblemDetail.class),
+                    examples = @ExampleObject(name = "No identity", value = OpenApiExamples.MISSING_IDENTITY_ERROR)
+            )
+    )
+    @ApiResponse(
+            responseCode = "403",
+            description = "The building is not in the token, or the user is not its administrator",
+            content = @Content(
+                    mediaType = OpenApiExamples.PROBLEM_JSON,
+                    schema = @Schema(implementation = ProblemDetail.class),
+                    examples = @ExampleObject(name = "Other building", value = OpenApiExamples.BUILDING_FORBIDDEN_ERROR)
+            )
+    )
     @PutMapping("/{sensorId}")
     public ThresholdResponseDto configureThreshold(
             @Parameter(description = "Identifier of the sensor", example = "5d1c2f0e-8f4a-4a53-9a7e-0f3b1c9d7a11")
             @PathVariable UUID sensorId,
-            @Valid @RequestBody ThresholdRequestDto request
+            @Valid @RequestBody ThresholdRequestDto request,
+            @Parameter(hidden = true) @CurrentGatewayUser GatewayUser user
     ) {
+        user.requireAdministratorOf(request.buildingId());
         return mapper.toResponse(alertService.configureThreshold(
                 sensorId, request.buildingId(), request.warningValue(), request.criticalValue()));
     }
@@ -104,12 +125,33 @@ public class ThresholdController {
                     examples = @ExampleObject(name = "No threshold", value = OpenApiExamples.THRESHOLD_NOT_FOUND_ERROR)
             )
     )
+    @ApiResponse(
+            responseCode = "401",
+            description = "The request has no user identity from the gateway",
+            content = @Content(
+                    mediaType = OpenApiExamples.PROBLEM_JSON,
+                    schema = @Schema(implementation = ProblemDetail.class),
+                    examples = @ExampleObject(name = "No identity", value = OpenApiExamples.MISSING_IDENTITY_ERROR)
+            )
+    )
+    @ApiResponse(
+            responseCode = "403",
+            description = "The building of the sensor is not in the token, or the user is not its administrator",
+            content = @Content(
+                    mediaType = OpenApiExamples.PROBLEM_JSON,
+                    schema = @Schema(implementation = ProblemDetail.class),
+                    examples = @ExampleObject(name = "Other building", value = OpenApiExamples.BUILDING_FORBIDDEN_ERROR)
+            )
+    )
     @GetMapping("/{sensorId}")
     public ThresholdResponseDto getThreshold(
             @Parameter(description = "Identifier of the sensor", example = "5d1c2f0e-8f4a-4a53-9a7e-0f3b1c9d7a11")
-            @PathVariable UUID sensorId
+            @PathVariable UUID sensorId,
+            @Parameter(hidden = true) @CurrentGatewayUser GatewayUser user
     ) {
-        return mapper.toResponse(alertService.getThreshold(sensorId));
+        SensorThreshold threshold = alertService.getThreshold(sensorId);
+        user.requireAdministratorOf(threshold.getBuildingId());
+        return mapper.toResponse(threshold);
     }
 
     @Operation(
@@ -134,12 +176,32 @@ public class ThresholdController {
                     schema = @Schema(implementation = ProblemDetail.class)
             )
     )
+    @ApiResponse(
+            responseCode = "401",
+            description = "The request has no user identity from the gateway",
+            content = @Content(
+                    mediaType = OpenApiExamples.PROBLEM_JSON,
+                    schema = @Schema(implementation = ProblemDetail.class),
+                    examples = @ExampleObject(name = "No identity", value = OpenApiExamples.MISSING_IDENTITY_ERROR)
+            )
+    )
+    @ApiResponse(
+            responseCode = "403",
+            description = "The building is not in the token, or the user is not its administrator",
+            content = @Content(
+                    mediaType = OpenApiExamples.PROBLEM_JSON,
+                    schema = @Schema(implementation = ProblemDetail.class),
+                    examples = @ExampleObject(name = "Other building", value = OpenApiExamples.BUILDING_FORBIDDEN_ERROR)
+            )
+    )
     @GetMapping
     public List<ThresholdResponseDto> listThresholds(
             @Parameter(description = "Identifier of the building", required = true,
                     example = "7a9b3c1d-2e4f-4b6a-8c0d-1e2f3a4b5c6d")
-            @RequestParam UUID buildingId
+            @RequestParam UUID buildingId,
+            @Parameter(hidden = true) @CurrentGatewayUser GatewayUser user
     ) {
+        user.requireAdministratorOf(buildingId);
         return alertService.listThresholds(buildingId).stream()
                 .map(mapper::toResponse)
                 .toList();

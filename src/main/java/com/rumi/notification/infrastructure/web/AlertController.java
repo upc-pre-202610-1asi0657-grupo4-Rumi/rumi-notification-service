@@ -17,7 +17,6 @@ import org.springframework.http.ProblemDetail;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PatchMapping;
 import org.springframework.web.bind.annotation.PathVariable;
-import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
@@ -42,7 +41,7 @@ public class AlertController {
             summary = "List the alerts of a building",
             description = "Returns the alerts of the building, newest first (US14, US15, US16). "
                     + "Filter by status to get, for example, only the OPEN alerts. "
-                    + "Through the gateway, a RESIDENT only sees the alerts of the buildings in their token."
+                    + "Only an ADMINISTRATOR or a RESIDENT of the building, as stated in their token, can list them."
     )
     @ApiResponse(
             responseCode = "200",
@@ -68,13 +67,22 @@ public class AlertController {
             )
     )
     @ApiResponse(
+            responseCode = "401",
+            description = "The request has no user identity from the gateway",
+            content = @Content(
+                    mediaType = OpenApiExamples.PROBLEM_JSON,
+                    schema = @Schema(implementation = ProblemDetail.class),
+                    examples = @ExampleObject(name = "No identity", value = OpenApiExamples.MISSING_IDENTITY_ERROR)
+            )
+    )
+    @ApiResponse(
             responseCode = "403",
-            description = "A resident asked for the alerts of a building that is not in their token",
+            description = "The building is not in the token of the user",
             content = @Content(
                     mediaType = OpenApiExamples.PROBLEM_JSON,
                     schema = @Schema(implementation = ProblemDetail.class),
                     examples = @ExampleObject(name = "Other building",
-                            value = OpenApiExamples.RESIDENT_FORBIDDEN_ERROR)
+                            value = OpenApiExamples.BUILDING_FORBIDDEN_ERROR)
             )
     )
     @GetMapping
@@ -84,11 +92,9 @@ public class AlertController {
             @RequestParam UUID buildingId,
             @Parameter(description = "Only alerts with this status", example = "OPEN")
             @RequestParam(required = false) AlertStatus status,
-            @Parameter(hidden = true) @RequestHeader(value = GatewayUser.ROLE_HEADER, required = false) String role,
-            @Parameter(hidden = true) @RequestHeader(value = GatewayUser.BUILDING_IDS_HEADER, required = false)
-            String buildingIds
+            @Parameter(hidden = true) @CurrentGatewayUser GatewayUser user
     ) {
-        GatewayUser.from(role, buildingIds).requireAccessTo(buildingId);
+        user.requireAccessTo(buildingId);
         return alertService.listAlerts(buildingId, status).stream()
                 .map(mapper::toResponse)
                 .toList();
@@ -112,13 +118,22 @@ public class AlertController {
             )
     )
     @ApiResponse(
+            responseCode = "401",
+            description = "The request has no user identity from the gateway",
+            content = @Content(
+                    mediaType = OpenApiExamples.PROBLEM_JSON,
+                    schema = @Schema(implementation = ProblemDetail.class),
+                    examples = @ExampleObject(name = "No identity", value = OpenApiExamples.MISSING_IDENTITY_ERROR)
+            )
+    )
+    @ApiResponse(
             responseCode = "403",
-            description = "A resident asked for an alert of a building that is not in their token",
+            description = "The building of the alert is not in the token of the user",
             content = @Content(
                     mediaType = OpenApiExamples.PROBLEM_JSON,
                     schema = @Schema(implementation = ProblemDetail.class),
                     examples = @ExampleObject(name = "Other building",
-                            value = OpenApiExamples.RESIDENT_FORBIDDEN_ERROR)
+                            value = OpenApiExamples.BUILDING_FORBIDDEN_ERROR)
             )
     )
     @ApiResponse(
@@ -134,19 +149,38 @@ public class AlertController {
     public AlertResponseDto getAlert(
             @Parameter(description = "Identifier of the alert", example = "0b7e4c2a-9d1f-4e3b-8a6c-5f2d1e0c9b8a")
             @PathVariable UUID alertId,
-            @Parameter(hidden = true) @RequestHeader(value = GatewayUser.ROLE_HEADER, required = false) String role,
-            @Parameter(hidden = true) @RequestHeader(value = GatewayUser.BUILDING_IDS_HEADER, required = false)
-            String buildingIds
+            @Parameter(hidden = true) @CurrentGatewayUser GatewayUser user
     ) {
         Alert alert = alertService.getAlert(alertId);
-        GatewayUser.from(role, buildingIds).requireAccessTo(alert.getBuildingId());
+        user.requireAccessTo(alert.getBuildingId());
         return mapper.toResponse(alert);
     }
 
     @Operation(
             summary = "Acknowledge an alert",
-            description = "Records that the administrator has seen an OPEN alert. The user comes from the "
-                    + "X-User-Id header added by the gateway."
+            description = "Records that the administrator has seen an OPEN alert. Only the ADMINISTRATOR of the "
+                    + "building of the alert can do it; the user comes from the X-User-Id header added by the gateway."
+    )
+    @ApiResponse(
+            responseCode = "401",
+            description = "The request has no user identity from the gateway",
+            content = @Content(
+                    mediaType = OpenApiExamples.PROBLEM_JSON,
+                    schema = @Schema(implementation = ProblemDetail.class),
+                    examples = @ExampleObject(name = "No identity", value = OpenApiExamples.MISSING_IDENTITY_ERROR)
+            )
+    )
+    @ApiResponse(
+            responseCode = "403",
+            description = "The building of the alert is not in the token, or the user is not its administrator",
+            content = @Content(
+                    mediaType = OpenApiExamples.PROBLEM_JSON,
+                    schema = @Schema(implementation = ProblemDetail.class),
+                    examples = {
+                            @ExampleObject(name = "Other building", value = OpenApiExamples.BUILDING_FORBIDDEN_ERROR),
+                            @ExampleObject(name = "Resident", value = OpenApiExamples.ADMINISTRATOR_ONLY_ERROR)
+                    }
+            )
     )
     @ApiResponse(
             responseCode = "200",
@@ -181,16 +215,38 @@ public class AlertController {
     public AlertResponseDto acknowledgeAlert(
             @Parameter(description = "Identifier of the alert", example = "0b7e4c2a-9d1f-4e3b-8a6c-5f2d1e0c9b8a")
             @PathVariable UUID alertId,
-            @Parameter(hidden = true) @RequestHeader(value = GatewayUser.USER_ID_HEADER, required = false)
-            String userId
+            @Parameter(hidden = true) @CurrentGatewayUser GatewayUser user
     ) {
-        return mapper.toResponse(alertService.acknowledgeAlert(alertId, GatewayUser.parseUserId(userId)));
+        user.requireAdministratorOf(alertService.getAlert(alertId).getBuildingId());
+        return mapper.toResponse(alertService.acknowledgeAlert(alertId, user.userId()));
     }
 
     @Operation(
             summary = "Resolve an alert",
             description = "Closes an OPEN or ACKNOWLEDGED alert when no further action is needed. "
-                    + "A resolved threshold alert lets the sensor raise a new one."
+                    + "A resolved threshold alert lets the sensor raise a new one. Only the ADMINISTRATOR of the "
+                    + "building of the alert can do it."
+    )
+    @ApiResponse(
+            responseCode = "401",
+            description = "The request has no user identity from the gateway",
+            content = @Content(
+                    mediaType = OpenApiExamples.PROBLEM_JSON,
+                    schema = @Schema(implementation = ProblemDetail.class),
+                    examples = @ExampleObject(name = "No identity", value = OpenApiExamples.MISSING_IDENTITY_ERROR)
+            )
+    )
+    @ApiResponse(
+            responseCode = "403",
+            description = "The building of the alert is not in the token, or the user is not its administrator",
+            content = @Content(
+                    mediaType = OpenApiExamples.PROBLEM_JSON,
+                    schema = @Schema(implementation = ProblemDetail.class),
+                    examples = {
+                            @ExampleObject(name = "Other building", value = OpenApiExamples.BUILDING_FORBIDDEN_ERROR),
+                            @ExampleObject(name = "Resident", value = OpenApiExamples.ADMINISTRATOR_ONLY_ERROR)
+                    }
+            )
     )
     @ApiResponse(
             responseCode = "200",
@@ -223,8 +279,10 @@ public class AlertController {
     @PatchMapping("/{alertId}/resolve")
     public AlertResponseDto resolveAlert(
             @Parameter(description = "Identifier of the alert", example = "0b7e4c2a-9d1f-4e3b-8a6c-5f2d1e0c9b8a")
-            @PathVariable UUID alertId
+            @PathVariable UUID alertId,
+            @Parameter(hidden = true) @CurrentGatewayUser GatewayUser user
     ) {
+        user.requireAdministratorOf(alertService.getAlert(alertId).getBuildingId());
         return mapper.toResponse(alertService.resolveAlert(alertId));
     }
 }

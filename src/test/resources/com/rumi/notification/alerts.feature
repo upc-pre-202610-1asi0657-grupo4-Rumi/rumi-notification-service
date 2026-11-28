@@ -43,3 +43,13 @@ Feature: Alerts backed by PostgreSQL
     Given Seismic Correlation reports a "LOW" risk index for the building
     When a resident of another building lists the alerts of the building
     Then the request is rejected with status 403
+
+  Scenario: An administrator cannot read the alerts of another building
+    Given Seismic Correlation reports a "LOW" risk index for the building
+    When an administrator of another building lists the alerts of the building
+    Then the request is rejected with status 403
+
+  Scenario: A resident cannot acknowledge an alert of their building
+    Given Seismic Correlation reports a "HIGH" risk index for the building
+    When a resident of the building acknowledges the alert
+    Then the request is rejected with status 403

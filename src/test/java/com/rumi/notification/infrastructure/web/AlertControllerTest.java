@@ -18,6 +18,12 @@ import org.springframework.test.web.servlet.MockMvc;
 import java.util.List;
 import java.util.UUID;
 
+import static com.rumi.notification.infrastructure.web.GatewayRequests.USER_ID;
+import static com.rumi.notification.infrastructure.web.GatewayRequests.administratorOf;
+import static com.rumi.notification.infrastructure.web.GatewayRequests.residentOf;
+import static com.rumi.notification.infrastructure.web.GatewayRequests.user;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
@@ -33,7 +39,6 @@ class AlertControllerTest {
 
     private static final UUID BUILDING_ID = AlertFixtures.BUILDING_ID;
     private static final UUID OTHER_BUILDING_ID = UUID.fromString("1f2e3d4c-5b6a-4978-8695-a4b3c2d1e0f9");
-    private static final UUID USER_ID = UUID.fromString("c1d2e3f4-a5b6-4c7d-8e9f-0a1b2c3d4e5f");
 
     @Autowired
     private MockMvc mockMvc;
@@ -41,12 +46,15 @@ class AlertControllerTest {
     @MockitoBean
     private AlertApplicationService alertService;
 
+    // --- List alerts
+
     @Test
     void listsTheAlertsOfABuilding() throws Exception {
         Alert alert = AlertFixtures.seismicAlert(AlertSeverity.CRITICAL);
         when(alertService.listAlerts(BUILDING_ID, null)).thenReturn(List.of(alert));
 
-        mockMvc.perform(get("/api/v1/alerts").param("buildingId", BUILDING_ID.toString()))
+        mockMvc.perform(get("/api/v1/alerts").param("buildingId", BUILDING_ID.toString())
+                        .with(residentOf(BUILDING_ID)))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$[0].id").value(alert.getId().toString()))
                 .andExpect(jsonPath("$[0].type").value("SEISMIC_RISK"))
@@ -62,7 +70,8 @@ class AlertControllerTest {
 
         mockMvc.perform(get("/api/v1/alerts")
                         .param("buildingId", BUILDING_ID.toString())
-                        .param("status", "OPEN"))
+                        .param("status", "OPEN")
+                        .with(administratorOf(BUILDING_ID)))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$").isEmpty());
 
@@ -71,7 +80,7 @@ class AlertControllerTest {
 
     @Test
     void rejectsAListWithoutBuildingId() throws Exception {
-        mockMvc.perform(get("/api/v1/alerts"))
+        mockMvc.perform(get("/api/v1/alerts").with(administratorOf(BUILDING_ID)))
                 .andExpect(status().isBadRequest())
                 .andExpect(content().contentTypeCompatibleWith(MediaType.APPLICATION_PROBLEM_JSON));
 
@@ -82,7 +91,8 @@ class AlertControllerTest {
     void rejectsAnUnknownStatus() throws Exception {
         mockMvc.perform(get("/api/v1/alerts")
                         .param("buildingId", BUILDING_ID.toString())
-                        .param("status", "CLOSED"))
+                        .param("status", "CLOSED")
+                        .with(administratorOf(BUILDING_ID)))
                 .andExpect(status().isBadRequest())
                 .andExpect(content().contentTypeCompatibleWith(MediaType.APPLICATION_PROBLEM_JSON));
 
@@ -95,8 +105,7 @@ class AlertControllerTest {
 
         mockMvc.perform(get("/api/v1/alerts")
                         .param("buildingId", BUILDING_ID.toString())
-                        .header("X-Role", "RESIDENT")
-                        .header("X-Building-Id", OTHER_BUILDING_ID + ", " + BUILDING_ID))
+                        .with(residentOf(OTHER_BUILDING_ID, BUILDING_ID)))
                 .andExpect(status().isOk());
     }
 
@@ -104,32 +113,73 @@ class AlertControllerTest {
     void aResidentCannotListTheAlertsOfAnotherBuilding() throws Exception {
         mockMvc.perform(get("/api/v1/alerts")
                         .param("buildingId", BUILDING_ID.toString())
-                        .header("X-Role", "RESIDENT")
-                        .header("X-Building-Id", OTHER_BUILDING_ID.toString()))
+                        .with(residentOf(OTHER_BUILDING_ID)))
                 .andExpect(status().isForbidden())
-                .andExpect(jsonPath("$.detail")
-                        .value("You do not have access to the alerts of building " + BUILDING_ID));
+                .andExpect(jsonPath("$.detail").value("You do not have access to building " + BUILDING_ID));
 
         verifyNoInteractions(alertService);
     }
 
     @Test
-    void anAdministratorCanListTheAlertsOfAnyBuilding() throws Exception {
+    void anAdministratorCanListTheAlertsOfTheirOwnBuilding() throws Exception {
         when(alertService.listAlerts(BUILDING_ID, null)).thenReturn(List.of());
 
         mockMvc.perform(get("/api/v1/alerts")
                         .param("buildingId", BUILDING_ID.toString())
-                        .header("X-Role", "ADMINISTRATOR")
-                        .header("X-Building-Id", OTHER_BUILDING_ID.toString()))
+                        .with(administratorOf(BUILDING_ID)))
                 .andExpect(status().isOk());
     }
+
+    @Test
+    void anAdministratorCannotListTheAlertsOfAnotherBuilding() throws Exception {
+        mockMvc.perform(get("/api/v1/alerts")
+                        .param("buildingId", BUILDING_ID.toString())
+                        .with(administratorOf(OTHER_BUILDING_ID)))
+                .andExpect(status().isForbidden())
+                .andExpect(content().contentTypeCompatibleWith(MediaType.APPLICATION_PROBLEM_JSON));
+
+        verifyNoInteractions(alertService);
+    }
+
+    @Test
+    void aRoleOutsideTheBuildingRolesIsDenied() throws Exception {
+        mockMvc.perform(get("/api/v1/alerts")
+                        .param("buildingId", BUILDING_ID.toString())
+                        .with(user("PLATFORM_ADMIN", BUILDING_ID)))
+                .andExpect(status().isForbidden());
+
+        verifyNoInteractions(alertService);
+    }
+
+    @Test
+    void aListWithoutGatewayIdentityIsRejected() throws Exception {
+        mockMvc.perform(get("/api/v1/alerts").param("buildingId", BUILDING_ID.toString()))
+                .andExpect(status().isUnauthorized())
+                .andExpect(content().contentTypeCompatibleWith(MediaType.APPLICATION_PROBLEM_JSON))
+                .andExpect(jsonPath("$.detail").value("The request has no user identity from the API gateway"));
+
+        verifyNoInteractions(alertService);
+    }
+
+    @Test
+    void aListWithARoleButNoUserIdIsRejected() throws Exception {
+        mockMvc.perform(get("/api/v1/alerts")
+                        .param("buildingId", BUILDING_ID.toString())
+                        .header("X-Role", "ADMINISTRATOR")
+                        .header("X-Building-Id", BUILDING_ID.toString()))
+                .andExpect(status().isUnauthorized());
+
+        verifyNoInteractions(alertService);
+    }
+
+    // --- Get one alert
 
     @Test
     void returnsAThresholdAlertWithItsSensorReading() throws Exception {
         Alert alert = AlertFixtures.thresholdAlert();
         when(alertService.getAlert(alert.getId())).thenReturn(alert);
 
-        mockMvc.perform(get("/api/v1/alerts/{alertId}", alert.getId()))
+        mockMvc.perform(get("/api/v1/alerts/{alertId}", alert.getId()).with(residentOf(BUILDING_ID)))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.type").value("THRESHOLD_EXCEEDED"))
                 .andExpect(jsonPath("$.sensorId").value(AlertFixtures.SENSOR_ID.toString()))
@@ -143,10 +193,27 @@ class AlertControllerTest {
         Alert alert = AlertFixtures.seismicAlert(AlertSeverity.HIGH);
         when(alertService.getAlert(alert.getId())).thenReturn(alert);
 
-        mockMvc.perform(get("/api/v1/alerts/{alertId}", alert.getId())
-                        .header("X-Role", "RESIDENT")
-                        .header("X-Building-Id", OTHER_BUILDING_ID.toString()))
+        mockMvc.perform(get("/api/v1/alerts/{alertId}", alert.getId()).with(residentOf(OTHER_BUILDING_ID)))
                 .andExpect(status().isForbidden());
+    }
+
+    @Test
+    void anAdministratorCannotGetAnAlertOfAnotherBuilding() throws Exception {
+        Alert alert = AlertFixtures.seismicAlert(AlertSeverity.HIGH);
+        when(alertService.getAlert(alert.getId())).thenReturn(alert);
+
+        mockMvc.perform(get("/api/v1/alerts/{alertId}", alert.getId()).with(administratorOf(OTHER_BUILDING_ID)))
+                .andExpect(status().isForbidden());
+    }
+
+    @Test
+    void gettingAnAlertWithoutGatewayIdentityIsRejected() throws Exception {
+        UUID alertId = UUID.randomUUID();
+
+        mockMvc.perform(get("/api/v1/alerts/{alertId}", alertId))
+                .andExpect(status().isUnauthorized());
+
+        verifyNoInteractions(alertService);
     }
 
     @Test
@@ -154,20 +221,24 @@ class AlertControllerTest {
         UUID alertId = UUID.randomUUID();
         when(alertService.getAlert(alertId)).thenThrow(new AlertNotFoundException(alertId));
 
-        mockMvc.perform(get("/api/v1/alerts/{alertId}", alertId))
+        mockMvc.perform(get("/api/v1/alerts/{alertId}", alertId).with(administratorOf(BUILDING_ID)))
                 .andExpect(status().isNotFound())
                 .andExpect(content().contentTypeCompatibleWith(MediaType.APPLICATION_PROBLEM_JSON))
                 .andExpect(jsonPath("$.detail").value("Alert " + alertId + " was not found"));
     }
 
+    // --- Acknowledge
+
     @Test
     void acknowledgesAnAlertOnBehalfOfTheGatewayUser() throws Exception {
         Alert alert = AlertFixtures.seismicAlert(AlertSeverity.MEDIUM);
-        alert.acknowledge(USER_ID, AlertFixtures.NOW);
-        when(alertService.acknowledgeAlert(alert.getId(), USER_ID)).thenReturn(alert);
+        when(alertService.getAlert(alert.getId())).thenReturn(alert);
+        Alert acknowledged = AlertFixtures.seismicAlert(AlertSeverity.MEDIUM);
+        acknowledged.acknowledge(USER_ID, AlertFixtures.NOW);
+        when(alertService.acknowledgeAlert(alert.getId(), USER_ID)).thenReturn(acknowledged);
 
         mockMvc.perform(patch("/api/v1/alerts/{alertId}/acknowledge", alert.getId())
-                        .header("X-User-Id", USER_ID.toString()))
+                        .with(administratorOf(BUILDING_ID)))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.status").value("ACKNOWLEDGED"))
                 .andExpect(jsonPath("$.acknowledgedBy").value(USER_ID.toString()));
@@ -176,7 +247,9 @@ class AlertControllerTest {
     @Test
     void rejectsAMalformedUserIdHeader() throws Exception {
         mockMvc.perform(patch("/api/v1/alerts/{alertId}/acknowledge", UUID.randomUUID())
-                        .header("X-User-Id", "not-a-uuid"))
+                        .header("X-User-Id", "not-a-uuid")
+                        .header("X-Role", "ADMINISTRATOR")
+                        .header("X-Building-Id", BUILDING_ID.toString()))
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.detail").value("Header X-User-Id must hold a user id"));
 
@@ -185,24 +258,96 @@ class AlertControllerTest {
 
     @Test
     void answersConflictWhenTheAlertIsNotOpen() throws Exception {
-        UUID alertId = UUID.randomUUID();
-        when(alertService.acknowledgeAlert(alertId, null)).thenThrow(
-                new AlertStateException("Alert " + alertId + " is ACKNOWLEDGED and cannot be acknowledged"));
+        Alert alert = AlertFixtures.seismicAlert(AlertSeverity.MEDIUM);
+        when(alertService.getAlert(alert.getId())).thenReturn(alert);
+        when(alertService.acknowledgeAlert(alert.getId(), USER_ID)).thenThrow(
+                new AlertStateException("Alert " + alert.getId() + " is ACKNOWLEDGED and cannot be acknowledged"));
 
-        mockMvc.perform(patch("/api/v1/alerts/{alertId}/acknowledge", alertId))
+        mockMvc.perform(patch("/api/v1/alerts/{alertId}/acknowledge", alert.getId())
+                        .with(administratorOf(BUILDING_ID)))
                 .andExpect(status().isConflict())
                 .andExpect(content().contentTypeCompatibleWith(MediaType.APPLICATION_PROBLEM_JSON));
     }
 
     @Test
+    void aResidentCannotAcknowledgeAnAlertOfTheirBuilding() throws Exception {
+        Alert alert = AlertFixtures.seismicAlert(AlertSeverity.MEDIUM);
+        when(alertService.getAlert(alert.getId())).thenReturn(alert);
+
+        mockMvc.perform(patch("/api/v1/alerts/{alertId}/acknowledge", alert.getId())
+                        .with(residentOf(BUILDING_ID)))
+                .andExpect(status().isForbidden())
+                .andExpect(jsonPath("$.detail").value("Only the administrator of the building can do this"));
+
+        verify(alertService, never()).acknowledgeAlert(any(), any());
+    }
+
+    @Test
+    void anAdministratorOfAnotherBuildingCannotAcknowledgeAnAlert() throws Exception {
+        Alert alert = AlertFixtures.seismicAlert(AlertSeverity.MEDIUM);
+        when(alertService.getAlert(alert.getId())).thenReturn(alert);
+
+        mockMvc.perform(patch("/api/v1/alerts/{alertId}/acknowledge", alert.getId())
+                        .with(administratorOf(OTHER_BUILDING_ID)))
+                .andExpect(status().isForbidden());
+
+        verify(alertService, never()).acknowledgeAlert(any(), any());
+    }
+
+    @Test
+    void acknowledgingWithoutGatewayIdentityIsRejected() throws Exception {
+        mockMvc.perform(patch("/api/v1/alerts/{alertId}/acknowledge", UUID.randomUUID()))
+                .andExpect(status().isUnauthorized());
+
+        verifyNoInteractions(alertService);
+    }
+
+    // --- Resolve
+
+    @Test
     void resolvesAnAlert() throws Exception {
         Alert alert = AlertFixtures.seismicAlert(AlertSeverity.LOW);
-        alert.resolve(AlertFixtures.NOW);
-        when(alertService.resolveAlert(alert.getId())).thenReturn(alert);
+        when(alertService.getAlert(alert.getId())).thenReturn(alert);
+        Alert resolved = AlertFixtures.seismicAlert(AlertSeverity.LOW);
+        resolved.resolve(AlertFixtures.NOW);
+        when(alertService.resolveAlert(alert.getId())).thenReturn(resolved);
 
-        mockMvc.perform(patch("/api/v1/alerts/{alertId}/resolve", alert.getId()))
+        mockMvc.perform(patch("/api/v1/alerts/{alertId}/resolve", alert.getId())
+                        .with(administratorOf(BUILDING_ID)))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.status").value("RESOLVED"))
                 .andExpect(jsonPath("$.resolvedAt").value("2026-10-30T14:32:04Z"));
+    }
+
+    @Test
+    void aResidentCannotResolveAnAlertOfTheirBuilding() throws Exception {
+        Alert alert = AlertFixtures.seismicAlert(AlertSeverity.LOW);
+        when(alertService.getAlert(alert.getId())).thenReturn(alert);
+
+        mockMvc.perform(patch("/api/v1/alerts/{alertId}/resolve", alert.getId())
+                        .with(residentOf(BUILDING_ID)))
+                .andExpect(status().isForbidden());
+
+        verify(alertService, never()).resolveAlert(any());
+    }
+
+    @Test
+    void anAdministratorOfAnotherBuildingCannotResolveAnAlert() throws Exception {
+        Alert alert = AlertFixtures.seismicAlert(AlertSeverity.LOW);
+        when(alertService.getAlert(alert.getId())).thenReturn(alert);
+
+        mockMvc.perform(patch("/api/v1/alerts/{alertId}/resolve", alert.getId())
+                        .with(administratorOf(OTHER_BUILDING_ID)))
+                .andExpect(status().isForbidden());
+
+        verify(alertService, never()).resolveAlert(any());
+    }
+
+    @Test
+    void resolvingWithoutGatewayIdentityIsRejected() throws Exception {
+        mockMvc.perform(patch("/api/v1/alerts/{alertId}/resolve", UUID.randomUUID()))
+                .andExpect(status().isUnauthorized());
+
+        verifyNoInteractions(alertService);
     }
 }
