@@ -74,7 +74,7 @@ public class AlertStepDefinitions {
         sensorId = UUID.randomUUID();
         response = send(HttpMethod.PUT, "/api/v1/thresholds/" + sensorId,
                 "{\"buildingId\":\"" + buildingId + "\",\"warningValue\":" + warning
-                        + ",\"criticalValue\":" + critical + "}", new HttpHeaders());
+                        + ",\"criticalValue\":" + critical + "}", administratorOf(buildingId));
         assertThat(response.getStatusCode().value()).isEqualTo(200);
     }
 
@@ -86,22 +86,32 @@ public class AlertStepDefinitions {
 
     @When("the administrator acknowledges the alert")
     public void acknowledge() {
-        HttpHeaders headers = new HttpHeaders();
-        headers.set("X-User-Id", UUID.randomUUID().toString());
-        response = send(HttpMethod.PATCH, "/api/v1/alerts/" + alertId + "/acknowledge", null, headers);
+        response = send(HttpMethod.PATCH, "/api/v1/alerts/" + alertId + "/acknowledge", null,
+                administratorOf(buildingId));
     }
 
     @When("the administrator resolves the alert")
     public void resolve() {
-        response = send(HttpMethod.PATCH, "/api/v1/alerts/" + alertId + "/resolve", null, new HttpHeaders());
+        response = send(HttpMethod.PATCH, "/api/v1/alerts/" + alertId + "/resolve", null,
+                administratorOf(buildingId));
+    }
+
+    @When("a resident of the building acknowledges the alert")
+    public void residentAcknowledges() {
+        response = send(HttpMethod.PATCH, "/api/v1/alerts/" + alertId + "/acknowledge", null,
+                gatewayUser("RESIDENT", buildingId));
     }
 
     @When("a resident of another building lists the alerts of the building")
     public void residentOfAnotherBuildingLists() {
-        HttpHeaders headers = new HttpHeaders();
-        headers.set("X-Role", "RESIDENT");
-        headers.set("X-Building-Id", UUID.randomUUID().toString());
-        response = send(HttpMethod.GET, "/api/v1/alerts?buildingId=" + buildingId, null, headers);
+        response = send(HttpMethod.GET, "/api/v1/alerts?buildingId=" + buildingId, null,
+                gatewayUser("RESIDENT", UUID.randomUUID()));
+    }
+
+    @When("an administrator of another building lists the alerts of the building")
+    public void administratorOfAnotherBuildingLists() {
+        response = send(HttpMethod.GET, "/api/v1/alerts?buildingId=" + buildingId, null,
+                administratorOf(UUID.randomUUID()));
     }
 
     @Then("the building has {int} {string} alert with severity {string}")
@@ -157,15 +167,30 @@ public class AlertStepDefinitions {
     }
 
     private JsonNode listAlerts() throws Exception {
-        response = context.http.getForEntity(context.url("/api/v1/alerts?buildingId=" + buildingId), String.class);
+        response = send(HttpMethod.GET, "/api/v1/alerts?buildingId=" + buildingId, null, administratorOf(buildingId));
         assertThat(response.getStatusCode().value()).isEqualTo(200);
         return objectMapper.readTree(response.getBody());
     }
 
     private JsonNode getAlert() throws Exception {
-        response = context.http.getForEntity(context.url("/api/v1/alerts/" + alertId), String.class);
+        response = send(HttpMethod.GET, "/api/v1/alerts/" + alertId, null, administratorOf(buildingId));
         assertThat(response.getStatusCode().value()).isEqualTo(200);
         return objectMapper.readTree(response.getBody());
+    }
+
+    /**
+     * Identity headers that rumi-api-gateway adds after it validates the JWT.
+     */
+    private static HttpHeaders gatewayUser(String role, UUID buildingId) {
+        HttpHeaders headers = new HttpHeaders();
+        headers.set("X-User-Id", UUID.randomUUID().toString());
+        headers.set("X-Role", role);
+        headers.set("X-Building-Id", buildingId.toString());
+        return headers;
+    }
+
+    private static HttpHeaders administratorOf(UUID buildingId) {
+        return gatewayUser("ADMINISTRATOR", buildingId);
     }
 
     private ResponseEntity<String> send(HttpMethod method, String path, String body, HttpHeaders headers) {

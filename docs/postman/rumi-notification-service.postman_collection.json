@@ -13,7 +13,27 @@
     { "key": "token", "value": "" },
     { "key": "buildingId", "value": "7a9b3c1d-2e4f-4b6a-8c0d-1e2f3a4b5c6d" },
     { "key": "sensorId", "value": "5d1c2f0e-8f4a-4a53-9a7e-0f3b1c9d7a11" },
-    { "key": "alertId", "value": "0b7e4c2a-9d1f-4e3b-8a6c-5f2d1e0c9b8a" }
+    { "key": "alertId", "value": "0b7e4c2a-9d1f-4e3b-8a6c-5f2d1e0c9b8a" },
+    { "key": "userId", "value": "c1d2e3f4-a5b6-4c7d-8e9f-0a1b2c3d4e5f" },
+    { "key": "role", "value": "ADMINISTRATOR" }
+  ],
+  "event": [
+    {
+      "listen": "prerequest",
+      "script": {
+        "type": "text/javascript",
+        "exec": [
+          "// On port 8085 the service needs the identity headers that rumi-api-gateway sets after validating the JWT.",
+          "// They are added unless the request sets its own; the gateway removes them anyway on port 8080.",
+          "const identity = { 'X-User-Id': pm.collectionVariables.get('userId'), 'X-Role': pm.collectionVariables.get('role'), 'X-Building-Id': pm.collectionVariables.get('buildingId') };",
+          "Object.entries(identity).forEach(([key, value]) => {",
+          "  if (!pm.request.headers.has(key)) {",
+          "    pm.request.headers.add({ key, value });",
+          "  }",
+          "});"
+        ]
+      }
+    }
   ],
   "item": [
     {

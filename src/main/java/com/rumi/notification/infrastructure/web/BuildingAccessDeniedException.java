@@ -3,11 +3,19 @@ package com.rumi.notification.infrastructure.web;
 import java.util.UUID;
 
 /**
- * A resident asked for the alerts of a building that is not in their token.
+ * The user of the gateway may not reach the building, or may reach it but the action is for its administrator.
  */
 public class BuildingAccessDeniedException extends RuntimeException {
 
-    public BuildingAccessDeniedException(UUID buildingId) {
-        super("You do not have access to the alerts of building " + buildingId);
+    private BuildingAccessDeniedException(String message) {
+        super(message);
+    }
+
+    static BuildingAccessDeniedException forBuilding(UUID buildingId) {
+        return new BuildingAccessDeniedException("You do not have access to building " + buildingId);
+    }
+
+    static BuildingAccessDeniedException administratorOnly() {
+        return new BuildingAccessDeniedException("Only the administrator of the building can do this");
     }
 }

@@ -27,20 +27,21 @@ Risk trend alerts (US27) and push delivery are planned for later sprints.
 
 ## Endpoints
 
-| Verb | Path | Description | Request | Response | User story |
-|---|---|---|---|---|---|
-| GET | `/api/v1/alerts?buildingId={id}&status={status}` | List the alerts of a building, newest first; `status` is optional | none | `200` `AlertResponse[]` | US14, US15, US16 |
-| GET | `/api/v1/alerts/{alertId}` | Get one alert with its instructions | none | `200` `AlertResponse` | US14, US16 |
-| PATCH | `/api/v1/alerts/{alertId}/acknowledge` | Acknowledge an `OPEN` alert | none (`X-User-Id` from the gateway) | `200` `AlertResponse` | US14 |
-| PATCH | `/api/v1/alerts/{alertId}/resolve` | Resolve an `OPEN` or `ACKNOWLEDGED` alert | none | `200` `AlertResponse` | US14, US15 |
-| PUT | `/api/v1/thresholds/{sensorId}` | Create or change the threshold of a sensor | `ThresholdRequest` | `200` `ThresholdResponse` | US15 |
-| GET | `/api/v1/thresholds/{sensorId}` | Get the threshold of a sensor | none | `200` `ThresholdResponse` | US15 |
-| GET | `/api/v1/thresholds?buildingId={id}` | List the thresholds of a building | none | `200` `ThresholdResponse[]` | US15 |
+| Verb | Path | Description | Who | Request | Response | User story |
+|---|---|---|---|---|---|---|
+| GET | `/api/v1/alerts?buildingId={id}&status={status}` | List the alerts of a building, newest first; `status` is optional | administrator or resident of the building | none | `200` `AlertResponse[]` | US14, US15, US16 |
+| GET | `/api/v1/alerts/{alertId}` | Get one alert with its instructions | administrator or resident of the building | none | `200` `AlertResponse` | US14, US16 |
+| PATCH | `/api/v1/alerts/{alertId}/acknowledge` | Acknowledge an `OPEN` alert | administrator of the building | none (`X-User-Id` from the gateway) | `200` `AlertResponse` | US14 |
+| PATCH | `/api/v1/alerts/{alertId}/resolve` | Resolve an `OPEN` or `ACKNOWLEDGED` alert | administrator of the building | none | `200` `AlertResponse` | US14, US15 |
+| PUT | `/api/v1/thresholds/{sensorId}` | Create or change the threshold of a sensor | administrator of the building | `ThresholdRequest` | `200` `ThresholdResponse` | US15 |
+| GET | `/api/v1/thresholds/{sensorId}` | Get the threshold of a sensor | administrator of the building | none | `200` `ThresholdResponse` | US15 |
+| GET | `/api/v1/thresholds?buildingId={id}` | List the thresholds of a building | administrator of the building | none | `200` `ThresholdResponse[]` | US15 |
 
 Implemented functional endpoints: 7.
 
-Errors follow RFC 7807 (`application/problem+json`): `400` invalid input, `403` a resident asked for
-another building, `404` unknown alert or threshold, `409` the alert is not in a state that allows the change.
+Errors follow RFC 7807 (`application/problem+json`): `400` invalid input, `401` no user identity from the
+gateway, `403` the building is not in the token or the action is for its administrator, `404` unknown alert
+or threshold, `409` the alert is not in a state that allows the change.
 
 Only with the `dev` profile, two more endpoints raise alerts by hand while the messaging listeners are
 not running. They are not counted as functional endpoints:
@@ -54,9 +55,22 @@ The skeleton endpoint `GET /api/v1/alerts/health` is still available.
 
 ### Access rules
 
-The gateway validates the JWT and forwards `X-User-Id`, `X-Role` and `X-Building-Id` (comma-separated).
-This service adds one rule: a `RESIDENT` only sees the alerts of the buildings in their token (`403`
-otherwise). Requests without these headers did not go through the gateway and are not restricted.
+The gateway validates the JWT and forwards `X-User-Id`, `X-Role` and `X-Building-Id` (comma-separated),
+after removing any of these headers sent by the client. This service checks building membership for every
+role, as defense in depth:
+
+- A request without `X-User-Id` or `X-Role` did not go through the gateway and gets `401`.
+- Only `ADMINISTRATOR` and `RESIDENT` reach a building, and only the buildings of their token (`403`
+  otherwise). Any other role gets `403`; platform roles do not exist yet.
+- Acknowledging or resolving an alert and managing thresholds are for the `ADMINISTRATOR` of the building;
+  a `RESIDENT` gets `403`.
+
+The `buildingIds` claim comes from IAM. Linking users to their buildings in IAM is still pending: until it
+is done, the tokens carry an empty list and every building request through the gateway gets `403`.
+
+To call the service directly (Swagger UI, Postman), send the three headers yourself, for example
+`X-User-Id: c1d2e3f4-a5b6-4c7d-8e9f-0a1b2c3d4e5f`, `X-Role: ADMINISTRATOR` and
+`X-Building-Id: 7a9b3c1d-2e4f-4b6a-8c0d-1e2f3a4b5c6d` (the sample building of the `dev` profile).
 
 ### Example
 

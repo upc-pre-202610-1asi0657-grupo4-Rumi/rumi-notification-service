@@ -137,13 +137,31 @@ final class OpenApiExamples {
               "instance": "/api/v1/alerts"
             }""";
 
-    static final String RESIDENT_FORBIDDEN_ERROR = """
+    static final String MISSING_IDENTITY_ERROR = """
+            {
+              "type": "about:blank",
+              "title": "Unauthorized",
+              "status": 401,
+              "detail": "The request has no user identity from the API gateway",
+              "instance": "/api/v1/alerts"
+            }""";
+
+    static final String BUILDING_FORBIDDEN_ERROR = """
             {
               "type": "about:blank",
               "title": "Forbidden",
               "status": 403,
-              "detail": "You do not have access to the alerts of building 7a9b3c1d-2e4f-4b6a-8c0d-1e2f3a4b5c6d",
+              "detail": "You do not have access to building 7a9b3c1d-2e4f-4b6a-8c0d-1e2f3a4b5c6d",
               "instance": "/api/v1/alerts"
+            }""";
+
+    static final String ADMINISTRATOR_ONLY_ERROR = """
+            {
+              "type": "about:blank",
+              "title": "Forbidden",
+              "status": 403,
+              "detail": "Only the administrator of the building can do this",
+              "instance": "/api/v1/alerts/0b7e4c2a-9d1f-4e3b-8a6c-5f2d1e0c9b8a/acknowledge"
             }""";
 
     static final String ALERT_NOT_FOUND_ERROR = """

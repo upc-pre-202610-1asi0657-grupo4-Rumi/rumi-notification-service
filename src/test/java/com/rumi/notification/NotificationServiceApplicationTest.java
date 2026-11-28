@@ -9,6 +9,7 @@ import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.http.MediaType;
 import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.web.servlet.MockMvc;
+import org.springframework.test.web.servlet.request.RequestPostProcessor;
 
 import java.util.UUID;
 
@@ -34,6 +35,18 @@ class NotificationServiceApplicationTest {
     @Autowired
     private ObjectMapper objectMapper;
 
+    /**
+     * Identity headers that rumi-api-gateway adds for the administrator of the building.
+     */
+    private static RequestPostProcessor administratorOf(UUID buildingId) {
+        return request -> {
+            request.addHeader("X-User-Id", UUID.randomUUID().toString());
+            request.addHeader("X-Role", "ADMINISTRATOR");
+            request.addHeader("X-Building-Id", buildingId.toString());
+            return request;
+        };
+    }
+
     @Test
     void contextLoadsAndTheHealthEndpointAnswers() throws Exception {
         mockMvc.perform(get("/api/v1/alerts/health"))
@@ -44,10 +57,12 @@ class NotificationServiceApplicationTest {
 
     @Test
     void theSampleAlertAndThresholdAreAvailable() throws Exception {
-        mockMvc.perform(get("/api/v1/alerts").param("buildingId", DevDataSeeder.BUILDING_ID.toString()))
+        mockMvc.perform(get("/api/v1/alerts").param("buildingId", DevDataSeeder.BUILDING_ID.toString())
+                        .with(administratorOf(DevDataSeeder.BUILDING_ID)))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$[*].id").value(hasItem(DevDataSeeder.ALERT_ID.toString())));
-        mockMvc.perform(get("/api/v1/thresholds/{sensorId}", DevDataSeeder.SENSOR_ID))
+        mockMvc.perform(get("/api/v1/thresholds/{sensorId}", DevDataSeeder.SENSOR_ID)
+                        .with(administratorOf(DevDataSeeder.BUILDING_ID)))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.criticalValue").value(0.10));
     }
@@ -69,7 +84,8 @@ class NotificationServiceApplicationTest {
                         .contentType(MediaType.APPLICATION_JSON).content(request))
                 .andExpect(status().isCreated())
                 .andExpect(jsonPath("$.id").value(alertId));
-        mockMvc.perform(get("/api/v1/alerts").param("buildingId", buildingId.toString()))
+        mockMvc.perform(get("/api/v1/alerts").param("buildingId", buildingId.toString())
+                        .with(administratorOf(buildingId)))
                 .andExpect(jsonPath("$.length()").value(1));
     }
 
@@ -79,7 +95,8 @@ class NotificationServiceApplicationTest {
         UUID buildingId = UUID.randomUUID();
         mockMvc.perform(put("/api/v1/thresholds/{sensorId}", sensorId)
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content("{\"buildingId\":\"" + buildingId + "\",\"warningValue\":0.05,\"criticalValue\":0.10}"))
+                        .content("{\"buildingId\":\"" + buildingId + "\",\"warningValue\":0.05,\"criticalValue\":0.10}")
+                        .with(administratorOf(buildingId)))
                 .andExpect(status().isOk());
         String reading = "{\"sensorId\":\"" + sensorId + "\",\"buildingId\":\"" + buildingId
                 + "\",\"zone\":\"FLOOR-3-NORTH\",\"value\":0.12}";
@@ -94,10 +111,10 @@ class NotificationServiceApplicationTest {
                 .andExpect(status().isNoContent());
 
         String alertId = objectMapper.readTree(raised).get("id").asText();
-        mockMvc.perform(patch("/api/v1/alerts/{alertId}/acknowledge", alertId))
+        mockMvc.perform(patch("/api/v1/alerts/{alertId}/acknowledge", alertId).with(administratorOf(buildingId)))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.status").value("ACKNOWLEDGED"));
-        mockMvc.perform(patch("/api/v1/alerts/{alertId}/resolve", alertId))
+        mockMvc.perform(patch("/api/v1/alerts/{alertId}/resolve", alertId).with(administratorOf(buildingId)))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.status").value("RESOLVED"));
         mockMvc.perform(post("/api/v1/alerts/simulations/readings")
