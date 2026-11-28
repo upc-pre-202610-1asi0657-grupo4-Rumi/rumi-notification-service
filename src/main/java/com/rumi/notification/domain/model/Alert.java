@@ -1,6 +1,8 @@
 package com.rumi.notification.domain.model;
 
 import java.time.Instant;
+import java.time.ZoneId;
+import java.time.format.DateTimeFormatter;
 import java.util.Locale;
 import java.util.Objects;
 import java.util.UUID;
@@ -8,6 +10,10 @@ import java.util.UUID;
 /**
  * An alert about one building. It is raised by a seismic risk index (US14, US16) or by a sensor
  * reading that exceeds its threshold (US15), and moves from OPEN to ACKNOWLEDGED to RESOLVED.
+ * <p>
+ * The texts are for the residents, in Spanish. They report an anomaly with its source and when it was
+ * detected, and point to the building's evacuation plan and to the authorities: Rumi never orders an
+ * evacuation from a threshold or a risk level, and it is not an official alert (it complements SASPe).
  */
 public final class Alert {
 
@@ -85,8 +91,9 @@ public final class Alert {
     }
 
     /**
-     * Raises the alert of a risk index calculated by Seismic Correlation. A CRITICAL risk requires
-     * the residents to evacuate (US16).
+     * Raises the alert of a risk index calculated by Seismic Correlation. A CRITICAL risk sets
+     * evacuationRequired, which tells the apps to show the building's evacuation plan (US16); the message
+     * itself never orders an evacuation.
      */
     public static Alert fromSeismicRisk(
             UUID id,
@@ -100,8 +107,8 @@ public final class Alert {
         Objects.requireNonNull(severity, "Alert severity is required");
         return new Alert(
                 id, buildingId, AlertType.SEISMIC_RISK, severity,
-                "Seismic risk " + severity.name(),
-                seismicMessage(severity),
+                "Anomalía estructural " + spanishName(severity) + " tras un sismo",
+                seismicMessage(severity, seismicEventId, calculatedAt),
                 severity == AlertSeverity.CRITICAL,
                 riskIndexId, seismicEventId, null, null, null,
                 calculatedAt, createdAt, AlertStatus.OPEN, null, null, null
@@ -123,14 +130,15 @@ public final class Alert {
     ) {
         Objects.requireNonNull(threshold, "Sensor threshold is required");
         Objects.requireNonNull(severity, "Alert severity is required");
-        String limitName = severity == AlertSeverity.CRITICAL ? "critical" : "warning";
-        String where = zone == null || zone.isBlank() ? "" : " in zone " + zone;
-        String message = String.format(Locale.ROOT,
-                "Reading %.3f%s reached the %s threshold %.3f of sensor %s.",
-                measuredValue, where, limitName, threshold.limitFor(severity), threshold.getSensorId());
+        String limitName = severity == AlertSeverity.CRITICAL ? "el umbral crítico" : "el umbral de advertencia";
+        String where = zone == null || zone.isBlank() ? "" : " en la zona " + zone;
+        String message = "Anomalía detectada por el sensor " + threshold.getSensorId() + where
+                + ": lectura " + decimal(measuredValue) + " sobre " + limitName + " "
+                + decimal(threshold.limitFor(severity)) + ". " + detectedAt(recordedAt)
+                + ". " + FOLLOW_THE_BUILDING_PLAN;
         return new Alert(
                 id, threshold.getBuildingId(), AlertType.THRESHOLD_EXCEEDED, severity,
-                "Sensor threshold exceeded",
+                "Lectura fuera de umbral",
                 message,
                 false,
                 null, null, threshold.getSensorId(), zone, measuredValue,
@@ -237,16 +245,41 @@ public final class Alert {
         return resolvedAt;
     }
 
-    private static String seismicMessage(AlertSeverity severity) {
-        return switch (severity) {
-            case CRITICAL -> "Critical structural risk after the seismic event. "
-                    + "Evacuate the building now using the nearest evacuation route.";
-            case HIGH -> "High structural risk after the seismic event. "
-                    + "Stay alert and follow the instructions of the building administration.";
-            case MEDIUM -> "Medium structural risk after the seismic event. "
-                    + "A structural inspection of the affected zones is recommended.";
-            case LOW -> "Seismic event detected with low structural risk. No action is required.";
+    private static final ZoneId LIMA = ZoneId.of("America/Lima");
+    private static final DateTimeFormatter LIMA_TIME = DateTimeFormatter.ofPattern("dd/MM/yyyy HH:mm", Locale.ROOT);
+    private static final String FOLLOW_THE_BUILDING_PLAN =
+            "Siga el plan de su edificio y las indicaciones de las autoridades.";
+    private static final String FOLLOW_THE_EVACUATION_PLAN =
+            "Siga el plan de evacuación de su edificio y las indicaciones de las autoridades.";
+    private static final String NOT_AN_OFFICIAL_ALERT = "Rumi complementa al SASPe; no es una alerta oficial.";
+
+    private static String seismicMessage(AlertSeverity severity, UUID seismicEventId, Instant calculatedAt) {
+        String anomaly = "Anomalía estructural " + spanishName(severity) + " detectada tras un sismo. "
+                + "Fuente: reporte del IGP (evento " + seismicEventId + ") y sensores del edificio. "
+                + detectedAt(calculatedAt) + ". ";
+        return anomaly + switch (severity) {
+            case CRITICAL, HIGH -> FOLLOW_THE_EVACUATION_PLAN + " " + NOT_AN_OFFICIAL_ALERT;
+            case MEDIUM -> "Se recomienda inspeccionar las zonas afectadas. " + FOLLOW_THE_BUILDING_PLAN;
+            case LOW -> "Manténgase atento a las indicaciones de las autoridades.";
         };
+    }
+
+    private static String spanishName(AlertSeverity severity) {
+        return switch (severity) {
+            case CRITICAL -> "crítica";
+            case HIGH -> "alta";
+            case MEDIUM -> "media";
+            case LOW -> "baja";
+        };
+    }
+
+    /** When Rumi detected the anomaly (the analysis or the reading), not when the earthquake happened. */
+    private static String detectedAt(Instant instant) {
+        return "Detectado: " + LIMA_TIME.format(instant.atZone(LIMA)) + " (hora de Lima)";
+    }
+
+    private static String decimal(double value) {
+        return String.format(Locale.ROOT, "%.3f", value).replace('.', ',');
     }
 
     private static String requireText(String value, String name, int maxLength) {

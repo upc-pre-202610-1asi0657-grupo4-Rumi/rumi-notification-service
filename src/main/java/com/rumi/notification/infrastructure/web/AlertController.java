@@ -102,8 +102,9 @@ public class AlertController {
 
     @Operation(
             summary = "Get an alert",
-            description = "Returns one alert with its instructions. When evacuationRequired is true, the residents "
-                    + "must evacuate the building (US16)."
+            description = "Returns one alert with its message: the anomaly, its source, when it was detected and a "
+                    + "reference to the building's plan and the authorities. When evacuationRequired is true (CRITICAL "
+                    + "seismic risk, US16) the app shows the building's evacuation plan; Rumi never orders an evacuation."
     )
     @ApiResponse(
             responseCode = "200",
@@ -112,7 +113,7 @@ public class AlertController {
                     mediaType = MediaType.APPLICATION_JSON_VALUE,
                     schema = @Schema(implementation = AlertResponseDto.class),
                     examples = {
-                            @ExampleObject(name = "Evacuation alert", value = OpenApiExamples.CRITICAL_ALERT_RESPONSE),
+                            @ExampleObject(name = "Critical seismic anomaly", value = OpenApiExamples.CRITICAL_ALERT_RESPONSE),
                             @ExampleObject(name = "Threshold alert", value = OpenApiExamples.THRESHOLD_ALERT_RESPONSE)
                     }
             )

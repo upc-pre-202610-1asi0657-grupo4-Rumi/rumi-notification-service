@@ -16,12 +16,29 @@ Raises and stores the alerts of a building:
 
 - **Seismic risk alerts (US14, US16).** When Seismic Correlation calculates a risk index, the RabbitMQ
   listener calls `createAlertFromRisk`. The alert keeps the risk level as its severity. A `CRITICAL` risk
-  sets `evacuationRequired = true` and tells the residents to evacuate (US16).
+  sets `evacuationRequired = true`, which tells the apps to show the building's evacuation plan (US16).
 - **Threshold alerts (US15).** The administrator configures a warning and a critical value for each
   sensor. A reading at or above the warning value raises a `HIGH` alert; at or above the critical value, a
   `CRITICAL` alert. A sensor does not raise a new alert while it has one that is not resolved.
 
 An alert moves from `OPEN` to `ACKNOWLEDGED` to `RESOLVED`.
+
+### Alert wording
+
+Rumi **does not order evacuations** from risk levels or thresholds. Every message, in Spanish for the
+residents, reports an *anomaly* with its source and when it was detected, and refers them to the building's
+plan and to the authorities. Rumi complements SASPe; it is not an official alert.
+
+| Alert | Message (example) |
+|---|---|
+| Seismic `CRITICAL` / `HIGH` | Anomalía estructural crítica detectada tras un sismo. Fuente: reporte del IGP (evento `<id>`) y sensores del edificio. Detectado: 30/10/2026 09:32 (hora de Lima). Siga el plan de evacuación de su edificio y las indicaciones de las autoridades. Rumi complementa al SASPe; no es una alerta oficial. |
+| Seismic `MEDIUM` | … Se recomienda inspeccionar las zonas afectadas. Siga el plan de su edificio y las indicaciones de las autoridades. |
+| Seismic `LOW` | … Manténgase atento a las indicaciones de las autoridades. |
+| Threshold | Anomalía detectada por el sensor `<id>` en la zona FLOOR-3-NORTH: lectura 0,120 sobre el umbral crítico 0,100. Detectado: … (hora de Lima). Siga el plan de su edificio y las indicaciones de las autoridades. |
+
+"Detectado" is when Rumi analysed the risk or recorded the reading, not when the earthquake happened.
+`evacuationRequired` keeps its name and column (no migration): it is `true` for a `CRITICAL` seismic risk
+and means "show the building's evacuation plan". Alerts stored before this change keep their old text.
 
 Risk trend alerts (US27) and push delivery are planned for later sprints.
 
@@ -81,8 +98,8 @@ To call the service directly (Swagger UI, Postman), send the three headers yours
   "type": "SEISMIC_RISK",
   "severity": "CRITICAL",
   "status": "OPEN",
-  "title": "Seismic risk CRITICAL",
-  "message": "Critical structural risk after the seismic event. Evacuate the building now using the nearest evacuation route.",
+  "title": "Anomalía estructural crítica tras un sismo",
+  "message": "Anomalía estructural crítica detectada tras un sismo. Fuente: reporte del IGP (evento 9e8d7c6b-5a4f-4e3d-b2c1-0a9f8e7d6c5b) y sensores del edificio. Detectado: 30/10/2026 09:32 (hora de Lima). Siga el plan de evacuación de su edificio y las indicaciones de las autoridades. Rumi complementa al SASPe; no es una alerta oficial.",
   "evacuationRequired": true,
   "riskIndexId": "4d2b8f6e-1a3c-4e5d-9f7b-2c4a6e8d0f13",
   "seismicEventId": "9e8d7c6b-5a4f-4e3d-b2c1-0a9f8e7d6c5b",

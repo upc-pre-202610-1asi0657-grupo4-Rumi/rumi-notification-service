@@ -21,13 +21,18 @@ public record AlertResponseDto(
         AlertSeverity severity,
         @Schema(description = "OPEN, ACKNOWLEDGED or RESOLVED", example = "OPEN")
         AlertStatus status,
-        @Schema(description = "Short title of the alert", example = "Seismic risk CRITICAL")
+        @Schema(description = "Short title of the alert, in Spanish", example = "Anomalía estructural crítica tras un sismo")
         String title,
-        @Schema(description = "Instructions for the residents and the administrator",
-                example = "Critical structural risk after the seismic event. "
-                        + "Evacuate the building now using the nearest evacuation route.")
+        @Schema(description = "Message for the residents, in Spanish: the anomaly, its source, when it was detected "
+                + "and a reference to the building's plan and the authorities. It never orders an evacuation",
+                example = "Anomalía estructural crítica detectada tras un sismo. Fuente: reporte del IGP (evento "
+                        + "9e8d7c6b-5a4f-4e3d-b2c1-0a9f8e7d6c5b) y sensores del edificio. Detectado: 30/10/2026 09:32 "
+                        + "(hora de Lima). Siga el plan de evacuación de su edificio y las indicaciones de las "
+                        + "autoridades. Rumi complementa al SASPe; no es una alerta oficial.")
         String message,
-        @Schema(description = "True when the residents must evacuate (CRITICAL seismic risk, US16)", example = "true")
+        @Schema(description = "True for a CRITICAL seismic risk (US16): the app shows the building's evacuation "
+                + "plan prominently. Rumi never orders an evacuation; the residents follow the building's plan and "
+                + "the authorities", example = "true")
         boolean evacuationRequired,
         @Schema(description = "Risk index of Seismic Correlation that raised the alert; null for threshold alerts",
                 example = "3c9a1e7d-4b2f-4d8e-a6c1-7e5f3b2d1a90", nullable = true)

@@ -66,7 +66,7 @@ public class DevSimulationController {
             content = @Content(
                     mediaType = MediaType.APPLICATION_JSON_VALUE,
                     schema = @Schema(implementation = AlertResponseDto.class),
-                    examples = @ExampleObject(name = "Evacuation alert", value = OpenApiExamples.CRITICAL_ALERT_RESPONSE)
+                    examples = @ExampleObject(name = "Critical seismic anomaly", value = OpenApiExamples.CRITICAL_ALERT_RESPONSE)
             )
     )
     @PostMapping("/risk")
