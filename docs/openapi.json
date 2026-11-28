@@ -324,16 +324,16 @@
                                     "$ref": "#/components/schemas/AlertResponse"
                                 },
                                 "examples": {
-                                    "Evacuation alert": {
-                                        "description": "Evacuation alert",
+                                    "Critical seismic anomaly": {
+                                        "description": "Critical seismic anomaly",
                                         "value": {
                                             "id": "6f1d2c3b-4a5e-4f6d-8c7b-9a0e1f2d3c4b",
                                             "buildingId": "7a9b3c1d-2e4f-4b6a-8c0d-1e2f3a4b5c6d",
                                             "type": "SEISMIC_RISK",
                                             "severity": "CRITICAL",
                                             "status": "OPEN",
-                                            "title": "Seismic risk CRITICAL",
-                                            "message": "Critical structural risk after the seismic event. Evacuate the building now using the nearest evacuation route.",
+                                            "title": "Anomal\u00eda estructural cr\u00edtica tras un sismo",
+                                            "message": "Anomal\u00eda estructural cr\u00edtica detectada tras un sismo. Fuente: reporte del IGP (evento 9e8d7c6b-5a4f-4e3d-b2c1-0a9f8e7d6c5b) y sensores del edificio. Detectado: 30/10/2026 09:32 (hora de Lima). Siga el plan de evacuaci\u00f3n de su edificio y las indicaciones de las autoridades. Rumi complementa al SASPe; no es una alerta oficial.",
                                             "evacuationRequired": true,
                                             "riskIndexId": "4d2b8f6e-1a3c-4e5d-9f7b-2c4a6e8d0f13",
                                             "seismicEventId": "9e8d7c6b-5a4f-4e3d-b2c1-0a9f8e7d6c5b",
@@ -400,8 +400,8 @@
                                             "type": "THRESHOLD_EXCEEDED",
                                             "severity": "CRITICAL",
                                             "status": "OPEN",
-                                            "title": "Sensor threshold exceeded",
-                                            "message": "Reading 0.120 in zone FLOOR-3-NORTH reached the critical threshold 0.100 of sensor 5d1c2f0e-8f4a-4a53-9a7e-0f3b1c9d7a11.",
+                                            "title": "Lectura fuera de umbral",
+                                            "message": "Anomal\u00eda detectada por el sensor 5d1c2f0e-8f4a-4a53-9a7e-0f3b1c9d7a11 en la zona FLOOR-3-NORTH: lectura 0,120 sobre el umbral cr\u00edtico 0,100. Detectado: 30/10/2026 10:10 (hora de Lima). Siga el plan de su edificio y las indicaciones de las autoridades.",
                                             "evacuationRequired": false,
                                             "riskIndexId": null,
                                             "seismicEventId": null,
@@ -524,8 +524,8 @@
                                             "type": "SEISMIC_RISK",
                                             "severity": "MEDIUM",
                                             "status": "RESOLVED",
-                                            "title": "Seismic risk MEDIUM",
-                                            "message": "Medium structural risk after the seismic event. A structural inspection of the affected zones is recommended.",
+                                            "title": "Anomal\u00eda estructural media tras un sismo",
+                                            "message": "Anomal\u00eda estructural media detectada tras un sismo. Fuente: reporte del IGP (evento 9e8d7c6b-5a4f-4e3d-b2c1-0a9f8e7d6c5b) y sensores del edificio. Detectado: 06/10/2026 09:32 (hora de Lima). Se recomienda inspeccionar las zonas afectadas. Siga el plan de su edificio y las indicaciones de las autoridades.",
                                             "evacuationRequired": false,
                                             "riskIndexId": "3c9a1e7d-4b2f-4d8e-a6c1-7e5f3b2d1a90",
                                             "seismicEventId": "9e8d7c6b-5a4f-4e3d-b2c1-0a9f8e7d6c5b",
@@ -682,8 +682,8 @@
                                             "type": "SEISMIC_RISK",
                                             "severity": "MEDIUM",
                                             "status": "ACKNOWLEDGED",
-                                            "title": "Seismic risk MEDIUM",
-                                            "message": "Medium structural risk after the seismic event. A structural inspection of the affected zones is recommended.",
+                                            "title": "Anomal\u00eda estructural media tras un sismo",
+                                            "message": "Anomal\u00eda estructural media detectada tras un sismo. Fuente: reporte del IGP (evento 9e8d7c6b-5a4f-4e3d-b2c1-0a9f8e7d6c5b) y sensores del edificio. Detectado: 06/10/2026 09:32 (hora de Lima). Se recomienda inspeccionar las zonas afectadas. Siga el plan de su edificio y las indicaciones de las autoridades.",
                                             "evacuationRequired": false,
                                             "riskIndexId": "3c9a1e7d-4b2f-4d8e-a6c1-7e5f3b2d1a90",
                                             "seismicEventId": "9e8d7c6b-5a4f-4e3d-b2c1-0a9f8e7d6c5b",
@@ -911,8 +911,8 @@
                                                 "type": "SEISMIC_RISK",
                                                 "severity": "MEDIUM",
                                                 "status": "OPEN",
-                                                "title": "Seismic risk MEDIUM",
-                                                "message": "Medium structural risk after the seismic event. A structural inspection of the affected zones is recommended.",
+                                                "title": "Anomal\u00eda estructural media tras un sismo",
+                                                "message": "Anomal\u00eda estructural media detectada tras un sismo. Fuente: reporte del IGP (evento 9e8d7c6b-5a4f-4e3d-b2c1-0a9f8e7d6c5b) y sensores del edificio. Detectado: 06/10/2026 09:32 (hora de Lima). Se recomienda inspeccionar las zonas afectadas. Siga el plan de su edificio y las indicaciones de las autoridades.",
                                                 "evacuationRequired": false,
                                                 "riskIndexId": "3c9a1e7d-4b2f-4d8e-a6c1-7e5f3b2d1a90",
                                                 "seismicEventId": "9e8d7c6b-5a4f-4e3d-b2c1-0a9f8e7d6c5b",
@@ -1016,7 +1016,7 @@
                     "Alerts"
                 ],
                 "summary": "Get an alert",
-                "description": "Returns one alert with its instructions. When evacuationRequired is true, the residents must evacuate the building (US16).",
+                "description": "Returns one alert with its message: the anomaly, its source, when it was detected and a reference to the building's plan and the authorities. When evacuationRequired is true (CRITICAL seismic risk, US16) the app shows the building's evacuation plan; Rumi never orders an evacuation.",
                 "operationId": "getAlert",
                 "parameters": [
                     {
@@ -1040,16 +1040,16 @@
                                     "$ref": "#/components/schemas/AlertResponse"
                                 },
                                 "examples": {
-                                    "Evacuation alert": {
-                                        "description": "Evacuation alert",
+                                    "Critical seismic anomaly": {
+                                        "description": "Critical seismic anomaly",
                                         "value": {
                                             "id": "6f1d2c3b-4a5e-4f6d-8c7b-9a0e1f2d3c4b",
                                             "buildingId": "7a9b3c1d-2e4f-4b6a-8c0d-1e2f3a4b5c6d",
                                             "type": "SEISMIC_RISK",
                                             "severity": "CRITICAL",
                                             "status": "OPEN",
-                                            "title": "Seismic risk CRITICAL",
-                                            "message": "Critical structural risk after the seismic event. Evacuate the building now using the nearest evacuation route.",
+                                            "title": "Anomal\u00eda estructural cr\u00edtica tras un sismo",
+                                            "message": "Anomal\u00eda estructural cr\u00edtica detectada tras un sismo. Fuente: reporte del IGP (evento 9e8d7c6b-5a4f-4e3d-b2c1-0a9f8e7d6c5b) y sensores del edificio. Detectado: 30/10/2026 09:32 (hora de Lima). Siga el plan de evacuaci\u00f3n de su edificio y las indicaciones de las autoridades. Rumi complementa al SASPe; no es una alerta oficial.",
                                             "evacuationRequired": true,
                                             "riskIndexId": "4d2b8f6e-1a3c-4e5d-9f7b-2c4a6e8d0f13",
                                             "seismicEventId": "9e8d7c6b-5a4f-4e3d-b2c1-0a9f8e7d6c5b",
@@ -1071,8 +1071,8 @@
                                             "type": "THRESHOLD_EXCEEDED",
                                             "severity": "CRITICAL",
                                             "status": "OPEN",
-                                            "title": "Sensor threshold exceeded",
-                                            "message": "Reading 0.120 in zone FLOOR-3-NORTH reached the critical threshold 0.100 of sensor 5d1c2f0e-8f4a-4a53-9a7e-0f3b1c9d7a11.",
+                                            "title": "Lectura fuera de umbral",
+                                            "message": "Anomal\u00eda detectada por el sensor 5d1c2f0e-8f4a-4a53-9a7e-0f3b1c9d7a11 en la zona FLOOR-3-NORTH: lectura 0,120 sobre el umbral cr\u00edtico 0,100. Detectado: 30/10/2026 10:10 (hora de Lima). Siga el plan de su edificio y las indicaciones de las autoridades.",
                                             "evacuationRequired": false,
                                             "riskIndexId": null,
                                             "seismicEventId": null,
@@ -1367,17 +1367,17 @@
                     },
                     "title": {
                         "type": "string",
-                        "description": "Short title of the alert",
-                        "example": "Seismic risk CRITICAL"
+                        "description": "Short title of the alert, in Spanish",
+                        "example": "Anomal\u00eda estructural cr\u00edtica tras un sismo"
                     },
                     "message": {
                         "type": "string",
-                        "description": "Instructions for the residents and the administrator",
-                        "example": "Critical structural risk after the seismic event. Evacuate the building now using the nearest evacuation route."
+                        "description": "Message for the residents, in Spanish: the anomaly, its source, when it was detected and a reference to the building's plan and the authorities. It never orders an evacuation",
+                        "example": "Anomal\u00eda estructural cr\u00edtica detectada tras un sismo. Fuente: reporte del IGP (evento 9e8d7c6b-5a4f-4e3d-b2c1-0a9f8e7d6c5b) y sensores del edificio. Detectado: 30/10/2026 09:32 (hora de Lima). Siga el plan de evacuaci\u00f3n de su edificio y las indicaciones de las autoridades. Rumi complementa al SASPe; no es una alerta oficial."
                     },
                     "evacuationRequired": {
                         "type": "boolean",
-                        "description": "True when the residents must evacuate (CRITICAL seismic risk, US16)",
+                        "description": "True for a CRITICAL seismic risk (US16): the app shows the building's evacuation plan prominently. Rumi never orders an evacuation; the residents follow the building's plan and the authorities",
                         "example": true
                     },
                     "riskIndexId": {
